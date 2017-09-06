@@ -133,46 +133,6 @@ package axi4_pkg is
       wb_master_o  : out t_wishbone_master_out;
       wb_master_i  : in  t_wishbone_master_in);
   end component xwb_axi4lite_bridge;
-
-  component wb_axi4lite_bridge is
-    port (
-      clk_sys_i : in std_logic;
-      rst_n_i   : in std_logic;
-  
-      ARVALID : in  std_logic;
-      AWVALID : in  std_logic;
-      BREADY  : in  std_logic;
-      RREADY  : in  std_logic;
-      WLAST   : in  std_logic;
-      WVALID  : in  std_logic;
-      ARADDR  : in  std_logic_vector (31 downto 0);
-      AWADDR  : in  std_logic_vector (31 downto 0);
-      WDATA   : in  std_logic_vector (31 downto 0);
-      WSTRB   : in  std_logic_vector (3 downto 0);
-      ARREADY : out std_logic;
-      AWREADY : out std_logic;
-      BVALID  : out std_logic;
-      RLAST   : out std_logic;
-      RVALID  : out std_logic;
-      WREADY  : out std_logic;
-      BRESP   : out std_logic_vector (1 downto 0);
-      RRESP   : out std_logic_vector (1 downto 0);
-      RDATA   : out std_logic_vector (31 downto 0);
-  
-      wb_adr : out std_logic_vector(c_wishbone_address_width-1 downto 0);
-      wb_dat_m2s : out std_logic_vector(c_wishbone_data_width-1 downto 0);
-      wb_sel : out std_logic_vector(c_wishbone_data_width/8-1 downto 0);
-      wb_cyc : out std_logic;
-      wb_stb : out std_logic;
-      wb_we  : out std_logic;
-  
-      wb_dat_s2m   : in std_logic_vector(c_wishbone_data_width-1 downto 0);
-      wb_err   : in std_logic := '0';
-      wb_rty   : in std_logic := '0';
-      wb_ack   : in std_logic;
-      wb_stall : in std_logic
-      );
-  end component;
   
 end package;
 

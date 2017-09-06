@@ -14,7 +14,7 @@ entity wb_axi4lite_bridge is
     AWVALID : in  std_logic;
     BREADY  : in  std_logic;
     RREADY  : in  std_logic;
-    WLAST   : in  std_logic;
+    WLAST   : in  std_logic := '1';
     WVALID  : in  std_logic;
     ARADDR  : in  std_logic_vector (31 downto 0);
     AWADDR  : in  std_logic_vector (31 downto 0);
@@ -82,10 +82,9 @@ begin
   wb_cyc <= wb_out.cyc;
   wb_we <= wb_out.we;
 
-  wb_in.err <= wb_err;
-  wb_in.rty <= wb_rty;
+  wb_in.err <= '0';
+  wb_in.rty <= '0';
   wb_in.ack <= wb_ack;
-  wb_in.int <= '0';
   wb_in.stall <= wb_stall;
   wb_in.dat <= wb_dat_s2m;
 
