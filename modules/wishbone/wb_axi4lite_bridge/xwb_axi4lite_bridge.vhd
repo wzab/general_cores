@@ -155,7 +155,7 @@ begin
               state               <= IDLE;
             end if;
 
-          when RESPONSE_READ => null;
+          when RESPONSE_READ =>
             if (axi4_slave_i.RREADY = '1') then
               axi4_slave_o.RVALID <= '0';
               state               <= IDLE;
