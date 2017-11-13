@@ -5,7 +5,7 @@
 -- Author     : Tomasz Wlostowski
 -- Company    : CERN BE-Co-HT
 -- Created    : 2010-05-18
--- Last update: 2013-09-04
+-- Last update: 2017-09-12
 -- Platform   : FPGA-generic
 -- Standard   : VHDL'87
 -------------------------------------------------------------------------------
@@ -83,16 +83,29 @@ architecture behavioral of wb_gpio_port is
   signal cor_wr : std_logic_vector(c_NUM_BANKS-1 downto 0);
   signal ddr_wr : std_logic_vector(c_NUM_BANKS-1 downto 0);
 
+  signal bank_index : integer range 0 to c_NUM_BANKS-1;
+
   signal write_mask : std_logic_vector(7 downto 0);
 
   signal wb_in  : t_wishbone_slave_in;
   signal wb_out : t_wishbone_slave_out;
 
+  attribute keep : string;
+
+  attribute keep of wb_in   : signal is "true";
+  attribute keep of wb_out  : signal is "true";
+  attribute keep of out_reg : signal is "true";
+  attribute keep of in_reg  : signal is "true";
+  attribute keep of dir_reg : signal is "true";
+
+
   signal sel          : std_logic;
   signal resized_addr : std_logic_vector(c_wishbone_address_width-1 downto 0);
+
+  
 begin
 
-  resized_addr(7 downto 0) <= wb_adr_i;
+  resized_addr(7 downto 0)                          <= wb_adr_i;
   resized_addr(c_wishbone_address_width-1 downto 8) <= (others => '0');
 
   U_Adapter : wb_slave_adapter
@@ -177,7 +190,7 @@ begin
     end if;
   end process;
 
-  GEN_LARGE: if g_num_pins > 32 generate
+  GEN_LARGE : if g_num_pins > 32 generate
     gen_banks_wr : for i in 0 to c_NUM_BANKS-1 generate
       process (clk_sys_i)
       begin
@@ -200,36 +213,39 @@ begin
       end process;
     end generate gen_banks_wr;
 
+    process(wb_in)
+    begin
+      -- synthesis translate_off
+      if unsigned(wb_in.adr(5 downto 3)) < c_NUM_BANKS then
+        bank_index <= to_integer(unsigned(wb_in.adr(5 downto 3)));
+      else
+        bank_index <= 0;
+      end if;
+      -- synthesis translate_on
+
+      bank_index <= to_integer(unsigned(wb_in.adr(5 downto 3)));
+    end process;
+
+
     p_wb_reads : process(clk_sys_i)
     begin
       if rising_edge(clk_sys_i) then
-        if rst_n_i = '0' then
-          wb_out.dat <= (others => '0');
-        else
-          wb_out.dat <= (others => 'X');
-          case wb_in.adr(2 downto 0) is
-            when c_GPIO_REG_DDR =>
-              for i in 0 to c_NUM_BANKS-1 loop
-                if(to_integer(unsigned(wb_in.adr(5 downto 3))) = i) then
-                  wb_out.dat <= dir_reg(32 * i + 31 downto 32 * i);
-                end if;
-              end loop;  -- i 
+        wb_out.dat <= (others => '0');
+        case wb_in.adr(2 downto 0) is
+          when c_GPIO_REG_DDR =>
+            wb_out.dat <= dir_reg(32 * bank_index + 31 downto 32 * bank_index);
 
-            when c_GPIO_REG_PSR =>
-              for i in 0 to c_NUM_BANKS-1 loop
-                if(to_integer(unsigned(wb_in.adr(5 downto 3))) = i) then
-                  wb_out.dat <= gpio_in_synced(32 * i + 31 downto 32 * i);
-                end if;
-              end loop;  -- i 
-            when others => null;
-          end case;
-        end if;
+          when c_GPIO_REG_PSR =>
+            wb_out.dat <= gpio_in_synced(32 * bank_index + 31 downto 32 * bank_index);
+
+          when others => null;
+        end case;
       end if;
     end process;
   end generate;
 
-  GEN_SMALL: if g_num_pins < 33 generate
-    p_wb_write: process (clk_sys_i)
+  GEN_SMALL : if g_num_pins < 33 generate
+    p_wb_write : process (clk_sys_i)
     begin
       if rising_edge(clk_sys_i) then
         if rst_n_i = '0' then
@@ -313,9 +329,9 @@ begin
 
   wb_out.ack   <= ack_int;
   wb_out.stall <= '0';
-  wb_out.err <= '0';
-  wb_out.int <= '0';
-  wb_out.rty <='0';
+  wb_out.err   <= '0';
+  wb_out.int   <= '0';
+  wb_out.rty   <= '0';
   
 end behavioral;
 
