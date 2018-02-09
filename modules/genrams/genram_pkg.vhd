@@ -6,7 +6,7 @@
 -- Author     : Tomasz Wlostowski
 -- Company    : CERN BE-CO-HT
 -- Created    : 2011-01-25
--- Last update: 2013-10-30
+-- Last update: 2018-02-06
 -- Platform   : 
 -- Standard   : VHDL'93
 -------------------------------------------------------------------------------
@@ -56,7 +56,9 @@ package genram_pkg is
       g_size                     : natural;
       g_with_byte_enable         : boolean := false;
       g_init_file                : string  := "none";
-      g_addr_conflict_resolution : string  := "dont_care") ;
+      g_addr_conflict_resolution : string  := "dont_care";
+      g_fail_if_file_not_found : boolean := true
+      ) ;
     port (
       rst_n_i : in  std_logic;
       clk_i   : in  std_logic;
@@ -74,7 +76,9 @@ package genram_pkg is
       g_with_byte_enable         : boolean := false;
       g_addr_conflict_resolution : string  := "dont_care";
       g_init_file                : string  := "none";
-      g_dual_clock               : boolean := true);
+      g_dual_clock               : boolean := true;
+      g_fail_if_file_not_found : boolean := true
+      );
     port (
       rst_n_i : in  std_logic := '1';
       clka_i  : in  std_logic;
@@ -94,7 +98,9 @@ package genram_pkg is
       g_with_byte_enable         : boolean := false;
       g_addr_conflict_resolution : string  := "dont_care";
       g_init_file                : string  := "none";
-      g_dual_clock               : boolean := true);
+      g_dual_clock               : boolean := true;
+      g_fail_if_file_not_found : boolean := true
+      );
     port (
       rst_n_i : in  std_logic := '1';
       clka_i  : in  std_logic;

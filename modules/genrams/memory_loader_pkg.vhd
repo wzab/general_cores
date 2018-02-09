@@ -37,7 +37,7 @@ package body memory_loader_pkg is
     variable mem: t_meminit_array(0 to mem_size-1, mem_width-1 downto 0);
     variable status   : file_open_status;
   begin
-    if(file_name = "" or file_name = "none") then
+    if(file_name = "" or file_name(1 to 4) = "none") then
       mem:= (others => (others => '0'));
       return mem;
     end if;
