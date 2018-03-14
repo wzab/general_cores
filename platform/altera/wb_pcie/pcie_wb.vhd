@@ -75,6 +75,18 @@ architecture rtl of pcie_wb is
   
   -- interrupt signals
   signal fifo_full, r_fifo_full, app_int_sts, app_msi_req : std_logic;
+
+  -- "direct access mode" signals
+  type bridge_mode_t is (mode_normal, mode_direct_access);
+  signal bridge_mode  : bridge_mode_t;
+  signal wb_direct_cyc: std_logic;
+  signal wb_n_transact: unsigned( 7 downto 0) := to_unsigned(0,8);
+  signal wb_offset_adr: std_logic_vector(31 downto 0);
+  signal wb_direct_adr: std_logic_vector(31 downto 0);
+  signal wb_base_adr  : std_logic_vector(31 downto 0) := x"ffffffff"; -- Configurable base addreess for WB-access
+                                                                      -- 0xffffffff means "normal mode".
+                                                                      -- This value is stored in a register inside the 
+                                                                      -- configuration space (bar0) under address 0x4.
 begin
 
   pcie_phy : pcie_altera 
@@ -187,9 +199,13 @@ begin
   int_slave_i.stb <= wb_stb        when wb_bar = "001" else '0';
   wb_stall    <= int_slave_o.stall when wb_bar = "001" else '0';
   
-  int_slave_i.cyc <= r_cyc;
-  int_slave_i.adr(r_addr'range) <= r_addr;
-  int_slave_i.adr(r_addr'right-1 downto 0)  <= wb_adr(r_addr'right-1 downto 0);
+  bridge_mode   <= mode_normal when wb_base_adr = x"ffffffff" else mode_direct_access;
+  wb_offset_adr <= x"0000" & wb_adr(15 downto 2) & "00";
+  wb_direct_adr <= std_logic_vector(unsigned(wb_offset_adr) + unsigned(wb_base_adr));
+
+  int_slave_i.cyc <= r_cyc when bridge_mode = mode_normal else int_slave_i.stb or wb_direct_cyc;
+  int_slave_i.adr(r_addr'range) <= r_addr when bridge_mode = mode_normal else wb_direct_adr(r_addr'range); 
+  int_slave_i.adr(r_addr'right-1 downto 0)  <= wb_adr(r_addr'right-1 downto 0) when bridge_mode = mode_normal else wb_direct_adr(r_addr'right-1 downto 0);
   
   FPGA_to_PC_clock_crossing : xwb_clock_crossing
     generic map(g_size => 32) port map(
@@ -233,12 +249,26 @@ begin
   begin
     if rising_edge(internal_wb_clk) then
       r_fifo_full <= fifo_full;
-      
       -- Shift in the error register
       if int_slave_o.ack = '1' or int_slave_o.err = '1' or int_slave_o.rty = '1' then
         r_error <= r_error(r_error'length-2 downto 0) & (int_slave_o.err or int_slave_o.rty);
       end if;
-      
+
+		-- control the cycle line during direct access mode	
+      if bridge_mode = mode_direct_access then
+        if int_slave_i.stb = '1' then 
+          if int_slave_o.stall = '0' then
+            wb_n_transact <= wb_n_transact + 1;
+          end if;
+          wb_direct_cyc <= '1';
+        elsif wb_direct_cyc = '1' and int_slave_o.ack = '1' then
+          wb_n_transact <= wb_n_transact - 1;
+          if wb_n_transact = 1 then
+            wb_direct_cyc <= '0';
+          end if;
+        end if;
+      end if;
+		
       if wb_bar = "001" then
         wb_ack <= int_slave_o.ack;
         wb_dat <= int_slave_o.dat;
@@ -253,6 +283,8 @@ begin
             wb_dat(30) <= '0';
             wb_dat(29) <= r_int;
             wb_dat(28 downto 0) <= (others => '0');
+          when "00001" => -- Direct Access Control Register
+            wb_dat(31 downto 0) <= wb_base_adr(31 downto 0);
           when "00010" => -- Error flag high
             wb_dat <= r_error(63 downto 32);
           when "00011" => -- Error flag low
@@ -287,11 +319,13 @@ begin
               if int_slave_i.sel(3) = '1' then
                 if int_slave_i.dat(30) = '1' then
                   r_cyc <= int_slave_i.dat(31);
-        	end if;
-        	if int_slave_i.dat(28) = '1' then
-        	  r_int <= int_slave_i.dat(29);
-        	end if;
+                end if;
+                if int_slave_i.dat(28) = '1' then
+                  r_int <= int_slave_i.dat(29);
+                end if;
               end if;
+            when "00001" => -- Direct Access Control Register (DACR)
+              wb_base_adr <= int_slave_i.dat(31 downto 0);
             when "00101" => -- Window offset low
               if int_slave_i.sel(3) = '1' then
                 r_addr(31 downto 24) <= int_slave_i.dat(31 downto 24);
